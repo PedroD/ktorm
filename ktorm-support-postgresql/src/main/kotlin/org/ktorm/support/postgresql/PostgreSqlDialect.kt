@@ -153,11 +153,16 @@ public open class PostgreSqlFormatter(
         writeKeyword("values ")
         writeInsertValues(expr.assignments)
 
-        if (expr.updateAssignments.isNotEmpty()) {
+        if (expr.conflictColumns.isNotEmpty()) {
             writeKeyword("on conflict ")
             writeInsertColumnNames(expr.conflictColumns)
-            writeKeyword("do update set ")
-            visitColumnAssignments(expr.updateAssignments)
+
+            if (expr.updateAssignments.isNotEmpty()) {
+                writeKeyword("do update set ")
+                visitColumnAssignments(expr.updateAssignments)
+            } else {
+                writeKeyword("do nothing ")
+            }
         }
 
         if (expr.returningColumns.isNotEmpty()) {
@@ -186,11 +191,16 @@ public open class PostgreSqlFormatter(
             writeInsertValues(assignments)
         }
 
-        if (expr.updateAssignments.isNotEmpty()) {
+        if (expr.conflictColumns.isNotEmpty()) {
             writeKeyword("on conflict ")
             writeInsertColumnNames(expr.conflictColumns)
-            writeKeyword("do update set ")
-            visitColumnAssignments(expr.updateAssignments)
+
+            if (expr.updateAssignments.isNotEmpty()) {
+                writeKeyword("do update set ")
+                visitColumnAssignments(expr.updateAssignments)
+            } else {
+                writeKeyword("do nothing ")
+            }
         }
 
         if (expr.returningColumns.isNotEmpty()) {
