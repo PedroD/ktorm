@@ -26,8 +26,14 @@ import org.ktorm.expression.SqlExpression
 import org.ktorm.expression.TableExpression
 import org.ktorm.schema.BaseTable
 import org.ktorm.schema.Column
+import java.util.*
+import kotlin.collections.ArrayList
 
-private const val MAX_SQL_EXPR_BATCH_SIZE = 30_000
+// We leave some prepared statement parameters reserved for the query dialect building process
+private const val RESERVED_SQL_EXPR_BATCH_SIZE = 100
+
+// Max number of assignments we allow per batch in Postgresql (Max size as defined by Postgresql - reserved)
+private const val MAX_SQL_EXPR_BATCH_SIZE = Short.MAX_VALUE - RESERVED_SQL_EXPR_BATCH_SIZE
 
 /**
  * Bulk insert expression, represents a bulk insert statement in PostgreSQL.
@@ -413,10 +419,10 @@ private fun <T : BaseTable<*>> Database.bulkInsertReturningAux(
 
     val builder = BulkInsertStatementBuilder(table).apply { block(table) }
 
-    builder.assignments.chunked(MAX_SQL_EXPR_BATCH_SIZE) { assignment ->
+    val execute: (List<List<ColumnAssignmentExpression<*>>>) -> Unit = { assignments ->
         val expression = BulkInsertExpression(
             table.asExpression(),
-            assignment,
+            assignments,
             returningColumns = returningColumns.map { it.asExpression() }
         )
 
@@ -425,6 +431,8 @@ private fun <T : BaseTable<*>> Database.bulkInsertReturningAux(
         affectedTotal += total
         cachedRowSets.add(rows)
     }
+
+    executeQueryInBatches(builder, execute)
 
     return Pair(affectedTotal, cachedRowSets)
 }
@@ -633,18 +641,18 @@ private fun <T : BaseTable<*>> Database.bulkInsertOrUpdateReturningAux(
 
     val builder = BulkInsertOrUpdateStatementBuilder(table).apply { block(table) }
 
-    builder.assignments.chunked(MAX_SQL_EXPR_BATCH_SIZE) { assignment ->
-        val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
-        if (conflictColumns.isEmpty()) {
-            val msg =
-                "Table '$table' doesn't have a primary key, " +
-                        "you must specify the conflict columns when calling onConflict(col) { .. }"
-            throw IllegalStateException(msg)
-        }
+    val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
+    if (conflictColumns.isEmpty()) {
+        val msg =
+            "Table '$table' doesn't have a primary key, " +
+                    "you must specify the conflict columns when calling onConflict(col) { .. }"
+        throw IllegalStateException(msg)
+    }
 
+    val execute: (List<List<ColumnAssignmentExpression<*>>>) -> Unit = { assignments ->
         val expression = BulkInsertExpression(
             table = table.asExpression(),
-            assignments = assignment,
+            assignments = assignments,
             conflictColumns = conflictColumns.map { it.asExpression() },
             updateAssignments = builder.updateAssignments,
             returningColumns = returningColumns.map { it.asExpression() }
@@ -656,5 +664,35 @@ private fun <T : BaseTable<*>> Database.bulkInsertOrUpdateReturningAux(
         cachedRowSets.add(rows)
     }
 
+    executeQueryInBatches(builder, execute)
+
     return Pair(affectedTotal, cachedRowSets)
+}
+
+private fun <T : BaseTable<*>> executeQueryInBatches(
+    builder: BulkInsertStatementBuilder<T>,
+    execute: (List<List<ColumnAssignmentExpression<*>>>) -> Unit
+) {
+    var batchAssignmentCount = 0
+    val currentBatch = LinkedList<List<ColumnAssignmentExpression<*>>>()
+    builder.assignments.forEach { assignments ->
+        assignments.size.let { size ->
+            if (size > MAX_SQL_EXPR_BATCH_SIZE) {
+                throw IllegalArgumentException(
+                    "The maximum number of assignments per item is $MAX_SQL_EXPR_BATCH_SIZE, but $size detected!"
+                )
+            }
+
+            currentBatch.add(assignments)
+            batchAssignmentCount += size
+        }
+
+        if (batchAssignmentCount % MAX_SQL_EXPR_BATCH_SIZE == 0) {
+            execute(currentBatch)
+            currentBatch.clear()
+        }
+    }
+    if (currentBatch.isNotEmpty()) {
+        execute(currentBatch)
+    }
 }
