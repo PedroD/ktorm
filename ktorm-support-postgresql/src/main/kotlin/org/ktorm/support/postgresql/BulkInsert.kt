@@ -102,6 +102,9 @@ public fun <T : BaseTable<*>> Database.bulkInsert(
     table: T, block: BulkInsertStatementBuilder<T>.(T) -> Unit
 ): Int {
     val builder = BulkInsertStatementBuilder(table).apply { block(table) }
+
+    if (builder.assignments.isEmpty()) return 0
+
     val expression = BulkInsertExpression(table.asExpression(), builder.assignments)
     return executeUpdate(expression)
 }
@@ -154,6 +157,8 @@ public fun <T : BaseTable<*>> Database.bulkInsertOrUpdate(
     table: T, block: BulkInsertOrUpdateStatementBuilder<T>.(T) -> Unit
 ): Int {
     val builder = BulkInsertOrUpdateStatementBuilder(table).apply { block(table) }
+
+    if (builder.assignments.isEmpty()) return 0
 
     val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
     if (conflictColumns.isEmpty()) {
@@ -419,6 +424,8 @@ private fun <T : BaseTable<*>> Database.bulkInsertReturningAux(
 
     val builder = BulkInsertStatementBuilder(table).apply { block(table) }
 
+    if (builder.assignments.isEmpty()) return Pair(0, CompositeCachedRowSet())
+
     val execute: (List<List<ColumnAssignmentExpression<*>>>) -> Unit = { assignments ->
         val expression = BulkInsertExpression(
             table.asExpression(),
@@ -640,6 +647,8 @@ private fun <T : BaseTable<*>> Database.bulkInsertOrUpdateReturningAux(
     val cachedRowSets = CompositeCachedRowSet()
 
     val builder = BulkInsertOrUpdateStatementBuilder(table).apply { block(table) }
+
+    if (builder.assignments.isEmpty()) return Pair(0, CompositeCachedRowSet())
 
     val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
     if (conflictColumns.isEmpty()) {

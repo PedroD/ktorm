@@ -94,6 +94,9 @@ public fun <T : BaseTable<*>> Database.batchInsert(
     table: T, block: BatchInsertStatementBuilder<T>.(T) -> Unit
 ): IntArray {
     val builder = BatchInsertStatementBuilder(table).apply { block(table) }
+
+    if (builder.assignments.isEmpty()) return IntArray(0)
+
     val expressions = builder.assignments.map { assignment ->
         BatchInsertExpression(table.asExpression(), assignment)
     }
@@ -149,6 +152,8 @@ public fun <T : BaseTable<*>> Database.batchInsertOrUpdate(
     table: T, block: BatchInsertOrUpdateStatementBuilder<T>.(T) -> Unit
 ): IntArray {
     val builder = BatchInsertOrUpdateStatementBuilder(table).apply { block(table) }
+
+    if (builder.assignments.isEmpty()) return IntArray(0)
 
     val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
     if (conflictColumns.isEmpty()) {
