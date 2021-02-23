@@ -19,13 +19,24 @@ package org.ktorm.support.postgresql
 import org.ktorm.database.CachedRowSet
 import java.util.*
 
+/**
+ * TO DOCUMENT
+ */
 public class CompositeCachedRowSet {
     private val resultSets = LinkedList<CachedRowSet>()
 
+    /**
+     * TO DOCUMENT
+     * @param rs todo
+     * @return todo
+     */
     public fun add(rs: CachedRowSet) {
         resultSets.add(rs)
     }
 
+    /**
+     * TO DOCUMENT
+     */
     public operator fun iterator(): Iterator<CachedRowSet> = object : Iterator<CachedRowSet> {
         private var cursor = 0
         private var hasNext: Boolean? = null
@@ -45,6 +56,9 @@ public class CompositeCachedRowSet {
         }
     }
 
+    /**
+     * TO DOCUMENT
+     */
     public fun asIterable(): Iterable<CachedRowSet> {
         return Iterable { iterator() }
     }

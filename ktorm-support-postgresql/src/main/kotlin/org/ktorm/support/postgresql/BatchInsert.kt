@@ -16,9 +16,7 @@
 
 package org.ktorm.support.postgresql
 
-import org.ktorm.database.CachedRowSet
 import org.ktorm.database.Database
-import org.ktorm.database.asIterable
 import org.ktorm.dsl.AssignmentsBuilder
 import org.ktorm.dsl.KtormDsl
 import org.ktorm.dsl.batchInsert

@@ -16,9 +16,7 @@
 
 package org.ktorm.support.postgresql
 
-import org.ktorm.database.CachedRowSet
 import org.ktorm.database.Database
-import org.ktorm.database.asIterable
 import org.ktorm.dsl.AssignmentsBuilder
 import org.ktorm.dsl.KtormDsl
 import org.ktorm.dsl.batchInsert
@@ -422,10 +420,10 @@ private fun <T : BaseTable<*>> Database.bulkInsertReturningAux(
             returningColumns = returningColumns.map { it.asExpression() }
         )
 
-         val (total, rows) = executeUpdateAndRetrieveKeys(expression)
+        val (total, rows) = executeUpdateAndRetrieveKeys(expression)
 
         affectedTotal += total
-        cachedRowSets.add( rows)
+        cachedRowSets.add(rows)
     }
 
     return Pair(affectedTotal, cachedRowSets)
@@ -655,7 +653,7 @@ private fun <T : BaseTable<*>> Database.bulkInsertOrUpdateReturningAux(
         val (total, rows) = executeUpdateAndRetrieveKeys(expression)
 
         affectedTotal += total
-        cachedRowSets.add( rows)
+        cachedRowSets.add(rows)
     }
 
     return Pair(affectedTotal, cachedRowSets)
