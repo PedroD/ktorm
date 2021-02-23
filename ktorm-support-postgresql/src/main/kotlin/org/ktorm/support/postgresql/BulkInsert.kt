@@ -29,6 +29,8 @@ import org.ktorm.expression.TableExpression
 import org.ktorm.schema.BaseTable
 import org.ktorm.schema.Column
 
+private const val MAX_SQL_EXPR_BATCH_SIZE = 30_000
+
 /**
  * Bulk insert expression, represents a bulk insert statement in PostgreSQL.
  *
@@ -407,16 +409,26 @@ private fun <T : BaseTable<*>> Database.bulkInsertReturningAux(
     table: T,
     returningColumns: List<Column<*>>,
     block: BulkInsertStatementBuilder<T>.(T) -> Unit
-): Pair<Int, CachedRowSet> {
+): Pair<Int, CompositeCachedRowSet> {
+    var affectedTotal = 0
+    val cachedRowSets = CompositeCachedRowSet()
+
     val builder = BulkInsertStatementBuilder(table).apply { block(table) }
 
-    val expression = BulkInsertExpression(
-        table.asExpression(),
-        builder.assignments,
-        returningColumns = returningColumns.map { it.asExpression() }
-    )
+    builder.assignments.chunked(MAX_SQL_EXPR_BATCH_SIZE) { assignment ->
+        val expression = BulkInsertExpression(
+            table.asExpression(),
+            assignment,
+            returningColumns = returningColumns.map { it.asExpression() }
+        )
 
-    return executeUpdateAndRetrieveKeys(expression)
+         val (total, rows) = executeUpdateAndRetrieveKeys(expression)
+
+        affectedTotal += total
+        cachedRowSets.add( rows)
+    }
+
+    return Pair(affectedTotal, cachedRowSets)
 }
 
 /**
@@ -617,24 +629,34 @@ private fun <T : BaseTable<*>> Database.bulkInsertOrUpdateReturningAux(
     table: T,
     returningColumns: List<Column<*>>,
     block: BulkInsertOrUpdateStatementBuilder<T>.(T) -> Unit
-): Pair<Int, CachedRowSet> {
+): Pair<Int, CompositeCachedRowSet> {
+    var affectedTotal = 0
+    val cachedRowSets = CompositeCachedRowSet()
+
     val builder = BulkInsertOrUpdateStatementBuilder(table).apply { block(table) }
 
-    val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
-    if (conflictColumns.isEmpty()) {
-        val msg =
-            "Table '$table' doesn't have a primary key, " +
-                    "you must specify the conflict columns when calling onConflict(col) { .. }"
-        throw IllegalStateException(msg)
+    builder.assignments.chunked(MAX_SQL_EXPR_BATCH_SIZE) { assignment ->
+        val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
+        if (conflictColumns.isEmpty()) {
+            val msg =
+                "Table '$table' doesn't have a primary key, " +
+                        "you must specify the conflict columns when calling onConflict(col) { .. }"
+            throw IllegalStateException(msg)
+        }
+
+        val expression = BulkInsertExpression(
+            table = table.asExpression(),
+            assignments = assignment,
+            conflictColumns = conflictColumns.map { it.asExpression() },
+            updateAssignments = builder.updateAssignments,
+            returningColumns = returningColumns.map { it.asExpression() }
+        )
+
+        val (total, rows) = executeUpdateAndRetrieveKeys(expression)
+
+        affectedTotal += total
+        cachedRowSets.add( rows)
     }
 
-    val expression = BulkInsertExpression(
-        table = table.asExpression(),
-        assignments = builder.assignments,
-        conflictColumns = conflictColumns.map { it.asExpression() },
-        updateAssignments = builder.updateAssignments,
-        returningColumns = returningColumns.map { it.asExpression() }
-    )
-
-    return executeUpdateAndRetrieveKeys(expression)
+    return Pair(affectedTotal, cachedRowSets)
 }
