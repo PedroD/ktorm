@@ -696,9 +696,10 @@ private fun <T : BaseTable<*>> executeQueryInBatches(
             batchAssignmentCount += size
         }
 
-        if (batchAssignmentCount % MAX_SQL_EXPR_BATCH_SIZE == 0) {
+        if (batchAssignmentCount >= MAX_SQL_EXPR_BATCH_SIZE) {
             execute(currentBatch)
             currentBatch.clear()
+            batchAssignmentCount = 0
         }
     }
     if (currentBatch.isNotEmpty()) {
