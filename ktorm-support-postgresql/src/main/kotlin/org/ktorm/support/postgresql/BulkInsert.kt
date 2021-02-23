@@ -101,12 +101,26 @@ public data class BulkInsertExpression(
 public fun <T : BaseTable<*>> Database.bulkInsert(
     table: T, block: BulkInsertStatementBuilder<T>.(T) -> Unit
 ): Int {
+    var affectedTotal = 0
+
     val builder = BulkInsertStatementBuilder(table).apply { block(table) }
 
     if (builder.assignments.isEmpty()) return 0
 
-    val expression = BulkInsertExpression(table.asExpression(), builder.assignments)
-    return executeUpdate(expression)
+    val execute: (List<List<ColumnAssignmentExpression<*>>>) -> Unit = { assignments ->
+        val expression = BulkInsertExpression(
+            table = table.asExpression(),
+            assignments = assignments
+        )
+
+        val total = executeUpdate(expression)
+
+        affectedTotal += total
+    }
+
+    executeQueryInBatches(builder, execute)
+
+    return affectedTotal
 }
 
 /**
@@ -156,6 +170,8 @@ public fun <T : BaseTable<*>> Database.bulkInsert(
 public fun <T : BaseTable<*>> Database.bulkInsertOrUpdate(
     table: T, block: BulkInsertOrUpdateStatementBuilder<T>.(T) -> Unit
 ): Int {
+    var affectedTotal = 0
+
     val builder = BulkInsertOrUpdateStatementBuilder(table).apply { block(table) }
 
     if (builder.assignments.isEmpty()) return 0
@@ -168,14 +184,22 @@ public fun <T : BaseTable<*>> Database.bulkInsertOrUpdate(
         throw IllegalStateException(msg)
     }
 
-    val expression = BulkInsertExpression(
-        table = table.asExpression(),
-        assignments = builder.assignments,
-        conflictColumns = conflictColumns.map { it.asExpression() },
-        updateAssignments = builder.updateAssignments
-    )
+    val execute: (List<List<ColumnAssignmentExpression<*>>>) -> Unit = { assignments ->
+        val expression = BulkInsertExpression(
+            table = table.asExpression(),
+            assignments = assignments,
+            conflictColumns = conflictColumns.map { it.asExpression() },
+            updateAssignments = builder.updateAssignments
+        )
 
-    return executeUpdate(expression)
+        val total = executeUpdate(expression)
+
+        affectedTotal += total
+    }
+
+    executeQueryInBatches(builder, execute)
+
+    return affectedTotal
 }
 
 /**
