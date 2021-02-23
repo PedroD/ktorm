@@ -20,13 +20,13 @@ import org.ktorm.database.CachedRowSet
 import java.util.*
 
 /**
- * TO DOCUMENT
+ * To document.
  */
 public class CompositeCachedRowSet {
     private val resultSets = LinkedList<CachedRowSet>()
 
     /**
-     * TO DOCUMENT
+     * To document.
      * @param rs todo
      * @return todo
      */
@@ -35,8 +35,9 @@ public class CompositeCachedRowSet {
     }
 
     /**
-     * TO DOCUMENT
+     * To document.
      */
+    @Suppress("IteratorHasNextCallsNextMethod")
     public operator fun iterator(): Iterator<CachedRowSet> = object : Iterator<CachedRowSet> {
         private var cursor = 0
         private var hasNext: Boolean? = null
@@ -52,12 +53,16 @@ public class CompositeCachedRowSet {
         }
 
         override fun next(): CachedRowSet {
-            return if (hasNext ?: hasNext()) resultSets[cursor].also { hasNext = null } else throw NoSuchElementException()
+            return if (hasNext ?: hasNext()) {
+                resultSets[cursor].also { hasNext = null }
+            } else {
+                throw NoSuchElementException()
+            }
         }
     }
 
     /**
-     * TO DOCUMENT
+     * To document.
      */
     public fun asIterable(): Iterable<CachedRowSet> {
         return Iterable { iterator() }
