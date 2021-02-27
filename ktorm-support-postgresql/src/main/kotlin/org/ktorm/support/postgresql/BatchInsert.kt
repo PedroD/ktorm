@@ -45,7 +45,7 @@ import org.ktorm.schema.Column
 public data class BatchInsertExpression(
     val table: TableExpression,
     val assignments: List<ColumnAssignmentExpression<*>>,
-    val conflictColumns: List<ColumnExpression<*>> = emptyList(),
+    val conflictColumns: List<ColumnExpression<*>>? = null,
     val updateAssignments: List<ColumnAssignmentExpression<*>> = emptyList(),
     val returningColumns: List<ColumnExpression<*>> = emptyList(),
     override val isLeafNode: Boolean = false,
@@ -155,8 +155,8 @@ public fun <T : BaseTable<*>> Database.batchInsertOrUpdate(
 
     if (builder.assignments.isEmpty()) return IntArray(0)
 
-    val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
-    if (conflictColumns.isEmpty()) {
+    val conflictColumns = builder.conflictColumns?.ifEmpty { table.primaryKeys }
+    if (conflictColumns != null && conflictColumns.isEmpty()) {
         val msg =
             "Table '$table' doesn't have a primary key, " +
                     "you must specify the conflict columns when calling onConflict(col) { .. }"
@@ -167,7 +167,7 @@ public fun <T : BaseTable<*>> Database.batchInsertOrUpdate(
         BatchInsertExpression(
             table = table.asExpression(),
             assignments = assignment,
-            conflictColumns = conflictColumns.map { it.asExpression() },
+            conflictColumns = conflictColumns?.map { it.asExpression() },
             updateAssignments = builder.updateAssignments
         )
     }
@@ -204,7 +204,7 @@ public open class BatchInsertStatementBuilder<T : BaseTable<*>>(internal val tab
 @KtormDsl
 public class BatchInsertOrUpdateStatementBuilder<T : BaseTable<*>>(table: T) : BatchInsertStatementBuilder<T>(table) {
     internal val updateAssignments = ArrayList<ColumnAssignmentExpression<*>>()
-    internal val conflictColumns = ArrayList<Column<*>>()
+    internal var conflictColumns : ArrayList<Column<*>>? = null
 
     /**
      * Specify the update assignments while any key conflict exists.
@@ -212,7 +212,10 @@ public class BatchInsertOrUpdateStatementBuilder<T : BaseTable<*>>(table: T) : B
     public fun onConflict(vararg columns: Column<*>, block: BatchInsertOrUpdateOnConflictClauseBuilder.() -> Unit) {
         val builder = BatchInsertOrUpdateOnConflictClauseBuilder().apply(block)
         updateAssignments += builder.assignments
-        conflictColumns += columns
+
+        if(conflictColumns == null)
+            conflictColumns = ArrayList()
+        conflictColumns!! += columns
     }
 }
 

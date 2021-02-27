@@ -40,7 +40,7 @@ import org.ktorm.schema.Column
 public data class InsertOrUpdateExpression(
     val table: TableExpression,
     val assignments: List<ColumnAssignmentExpression<*>>,
-    val conflictColumns: List<ColumnExpression<*>> = emptyList(),
+    val conflictColumns: List<ColumnExpression<*>>? = null,
     val updateAssignments: List<ColumnAssignmentExpression<*>> = emptyList(),
     val returningColumns: List<ColumnExpression<*>> = emptyList(),
     override val isLeafNode: Boolean = false,
@@ -84,8 +84,8 @@ public fun <T : BaseTable<*>> Database.insertOrUpdate(
 ): Int {
     val builder = InsertOrUpdateStatementBuilder().apply { block(table) }
 
-    val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
-    if (conflictColumns.isEmpty()) {
+    val conflictColumns = builder.conflictColumns?.ifEmpty { table.primaryKeys }
+    if (conflictColumns != null && conflictColumns.isEmpty()) {
         val msg =
             "Table '$table' doesn't have a primary key, " +
                     "you must specify the conflict columns when calling onConflict(col) { .. }"
@@ -95,7 +95,7 @@ public fun <T : BaseTable<*>> Database.insertOrUpdate(
     val expression = InsertOrUpdateExpression(
         table = table.asExpression(),
         assignments = builder.assignments,
-        conflictColumns = conflictColumns.map { it.asExpression() },
+        conflictColumns = conflictColumns?.map { it.asExpression() },
         updateAssignments = builder.updateAssignments
     )
 
@@ -120,7 +120,7 @@ public open class PostgreSqlAssignmentsBuilder : AssignmentsBuilder() {
 @KtormDsl
 public class InsertOrUpdateStatementBuilder : PostgreSqlAssignmentsBuilder() {
     internal val updateAssignments = ArrayList<ColumnAssignmentExpression<*>>()
-    internal val conflictColumns = ArrayList<Column<*>>()
+    internal var conflictColumns : ArrayList<Column<*>>? = null
 
     /**
      * Specify the update assignments while any key conflict exists.
@@ -139,7 +139,10 @@ public class InsertOrUpdateStatementBuilder : PostgreSqlAssignmentsBuilder() {
     public fun onConflict(vararg columns: Column<*>, block: AssignmentsBuilder.() -> Unit) {
         val builder = PostgreSqlAssignmentsBuilder().apply(block)
         updateAssignments += builder.assignments
-        conflictColumns += columns
+
+        if(conflictColumns == null)
+            conflictColumns = ArrayList()
+        conflictColumns!! += columns
     }
 }
 

@@ -53,7 +53,7 @@ private const val MAX_SQL_EXPR_BATCH_SIZE = Short.MAX_VALUE - RESERVED_SQL_EXPR_
 public data class BulkInsertExpression(
     val table: TableExpression,
     val assignments: List<List<ColumnAssignmentExpression<*>>>,
-    val conflictColumns: List<ColumnExpression<*>> = emptyList(),
+    val conflictColumns: List<ColumnExpression<*>>? = null,
     val updateAssignments: List<ColumnAssignmentExpression<*>> = emptyList(),
     val returningColumns: List<ColumnExpression<*>> = emptyList(),
     override val isLeafNode: Boolean = false,
@@ -176,8 +176,8 @@ public fun <T : BaseTable<*>> Database.bulkInsertOrUpdate(
 
     if (builder.assignments.isEmpty()) return 0
 
-    val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
-    if (conflictColumns.isEmpty()) {
+    val conflictColumns = builder.conflictColumns?.ifEmpty { table.primaryKeys }
+    if (conflictColumns != null && conflictColumns.isEmpty()) {
         val msg =
             "Table '$table' doesn't have a primary key, " +
                     "you must specify the conflict columns when calling onConflict(col) { .. }"
@@ -188,7 +188,7 @@ public fun <T : BaseTable<*>> Database.bulkInsertOrUpdate(
         val expression = BulkInsertExpression(
             table = table.asExpression(),
             assignments = assignments,
-            conflictColumns = conflictColumns.map { it.asExpression() },
+            conflictColumns = conflictColumns?.map { it.asExpression() },
             updateAssignments = builder.updateAssignments
         )
 
@@ -231,7 +231,7 @@ public open class BulkInsertStatementBuilder<T : BaseTable<*>>(internal val tabl
 @KtormDsl
 public class BulkInsertOrUpdateStatementBuilder<T : BaseTable<*>>(table: T) : BulkInsertStatementBuilder<T>(table) {
     internal val updateAssignments = ArrayList<ColumnAssignmentExpression<*>>()
-    internal val conflictColumns = ArrayList<Column<*>>()
+    internal var conflictColumns : ArrayList<Column<*>>? = null
 
     /**
      * Specify the update assignments while any key conflict exists.
@@ -239,7 +239,10 @@ public class BulkInsertOrUpdateStatementBuilder<T : BaseTable<*>>(table: T) : Bu
     public fun onConflict(vararg columns: Column<*>, block: BulkInsertOrUpdateOnConflictClauseBuilder.() -> Unit) {
         val builder = BulkInsertOrUpdateOnConflictClauseBuilder().apply(block)
         updateAssignments += builder.assignments
-        conflictColumns += columns
+
+        if(conflictColumns == null)
+            conflictColumns = ArrayList()
+        conflictColumns!! += columns
     }
 }
 
@@ -674,8 +677,8 @@ private fun <T : BaseTable<*>> Database.bulkInsertOrUpdateReturningAux(
 
     if (builder.assignments.isEmpty()) return Pair(0, CompositeCachedRowSet())
 
-    val conflictColumns = builder.conflictColumns.ifEmpty { table.primaryKeys }
-    if (conflictColumns.isEmpty()) {
+    val conflictColumns = builder.conflictColumns?.ifEmpty { table.primaryKeys }
+    if (conflictColumns != null && conflictColumns.isEmpty()) {
         val msg =
             "Table '$table' doesn't have a primary key, " +
                     "you must specify the conflict columns when calling onConflict(col) { .. }"
@@ -686,7 +689,7 @@ private fun <T : BaseTable<*>> Database.bulkInsertOrUpdateReturningAux(
         val expression = BulkInsertExpression(
             table = table.asExpression(),
             assignments = assignments,
-            conflictColumns = conflictColumns.map { it.asExpression() },
+            conflictColumns = conflictColumns?.map { it.asExpression() },
             updateAssignments = builder.updateAssignments,
             returningColumns = returningColumns.map { it.asExpression() }
         )
