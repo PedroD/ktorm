@@ -282,7 +282,7 @@ public open class PostgreSqlExpressionVisitor : SqlExpressionVisitor() {
     protected open fun visitInsertOrUpdate(expr: InsertOrUpdateExpression): InsertOrUpdateExpression {
         val table = visitTable(expr.table)
         val assignments = visitColumnAssignments(expr.assignments)
-        val conflictColumns = if(expr.conflictColumns != null) visitExpressionList(expr.conflictColumns) else null
+        val conflictColumns = if (expr.conflictColumns != null) visitExpressionList(expr.conflictColumns) else null
         val updateAssignments = visitColumnAssignments(expr.updateAssignments)
 
         @Suppress("ComplexCondition")
@@ -305,7 +305,7 @@ public open class PostgreSqlExpressionVisitor : SqlExpressionVisitor() {
     protected open fun visitBulkInsert(expr: BulkInsertExpression): BulkInsertExpression {
         val table = expr.table
         val assignments = visitBulkInsertAssignments(expr.assignments)
-        val conflictColumns = if(expr.conflictColumns != null) visitExpressionList(expr.conflictColumns) else null
+        val conflictColumns = if (expr.conflictColumns != null) visitExpressionList(expr.conflictColumns) else null
         val updateAssignments = visitColumnAssignments(expr.updateAssignments)
 
         @Suppress("ComplexCondition")

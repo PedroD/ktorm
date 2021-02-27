@@ -88,7 +88,7 @@ public fun <T : BaseTable<*>> Database.insertOrUpdate(
     if (conflictColumns != null && conflictColumns.isEmpty()) {
         val msg =
             "Table '$table' doesn't have a primary key, " +
-                    "you must specify the conflict columns when calling onConflict(col) { .. }"
+                "you must specify the conflict columns when calling onConflict(col) { .. }"
         throw IllegalStateException(msg)
     }
 
@@ -120,7 +120,7 @@ public open class PostgreSqlAssignmentsBuilder : AssignmentsBuilder() {
 @KtormDsl
 public class InsertOrUpdateStatementBuilder : PostgreSqlAssignmentsBuilder() {
     internal val updateAssignments = ArrayList<ColumnAssignmentExpression<*>>()
-    internal var conflictColumns : ArrayList<Column<*>>? = null
+    internal var conflictColumns: ArrayList<Column<*>>? = null
 
     /**
      * Specify the update assignments while any key conflict exists.
@@ -140,8 +140,9 @@ public class InsertOrUpdateStatementBuilder : PostgreSqlAssignmentsBuilder() {
         val builder = PostgreSqlAssignmentsBuilder().apply(block)
         updateAssignments += builder.assignments
 
-        if(conflictColumns == null)
+        if (conflictColumns == null) {
             conflictColumns = ArrayList()
+        }
         conflictColumns!! += columns
     }
 }
@@ -315,7 +316,7 @@ private fun <T : BaseTable<*>> Database.insertOrUpdateReturningAux(
     if (primaryKeys.isEmpty() && builder.conflictColumns.isEmpty()) {
         val msg =
             "Table '$table' doesn't have a primary key, " +
-                    "you must specify the conflict columns when calling onDuplicateKey(col) { .. }"
+                "you must specify the conflict columns when calling onDuplicateKey(col) { .. }"
         throw IllegalStateException(msg)
     }
 
