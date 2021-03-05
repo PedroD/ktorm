@@ -49,7 +49,6 @@ public open class PostgreSqlFormatter(
         val result = when (expr) {
             is InsertOrUpdateExpression -> visitInsertOrUpdate(expr)
             is BulkInsertExpression -> visitBulkInsert(expr)
-            is BatchInsertExpression -> visitBatchInsert(expr)
             else -> super.visit(expr)
         }
 
@@ -176,20 +175,6 @@ public open class PostgreSqlFormatter(
         }
 
         return expr
-    }
-
-    protected open fun visitBatchInsert(expr: BatchInsertExpression): BulkInsertExpression {
-        return this.visitBulkInsert(
-            BulkInsertExpression(
-                table = expr.table,
-                assignments = listOf(expr.assignments),
-                conflictColumns = expr.conflictColumns,
-                updateAssignments = expr.updateAssignments,
-                returningColumns = expr.returningColumns,
-                isLeafNode = expr.isLeafNode,
-                extraProperties = expr.extraProperties
-            )
-        )
     }
 
     protected open fun visitBulkInsert(expr: BulkInsertExpression): BulkInsertExpression {
